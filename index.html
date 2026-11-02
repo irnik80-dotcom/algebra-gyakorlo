@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Algebra gyakorló</title>
+  <meta name="description" content="Algebrai kifejezések gyakorlása a kezdetektől a műveletekig, automatikus és AI-alapú ellenőrzéssel.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23243a8f'/%3E%3Ctext x='50%25' y='58%25' text-anchor='middle' font-family='Georgia' font-style='italic' font-size='34' fill='white'%3Ex%C2%B2%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"><i>x</i>²</span>
+      <div>
+        <h1>Algebra gyakorló</h1>
+        <p>Algebrai kifejezések — a kezdetektől a műveletekig</p>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-view="practice" role="tab">Gyakorlás</button>
+      <button class="tab" data-view="own" role="tab">Saját feladat</button>
+    </nav>
+    <button id="settingsBtn" class="ai-status" title="AI beállítások"><span class="dot"></span><span id="aiStatusText" class="long">AI</span><span class="short">AI</span></button>
+  </header>
+
+  <main>
+    <!-- ================= GYAKORLÁS ================= -->
+    <section id="view-practice" class="view practice">
+      <aside class="sidebar" aria-label="Témakörök">
+        <div id="topicList"></div>
+      </aside>
+
+      <div class="content">
+        <label class="mobile-topic"><span>Témakör</span><select id="topicSelect"></select></label>
+
+        <div class="topic-head">
+          <div>
+            <span id="topicKicker" class="kicker"></span>
+            <h2 id="topicTitle"></h2>
+            <p id="topicShort" class="muted"></p>
+          </div>
+          <div class="levels" role="group" aria-label="Nehézség">
+            <span class="muted">Szint</span>
+            <button data-level="1" title="Könnyű">1</button>
+            <button data-level="2" title="Közepes">2</button>
+            <button data-level="3" title="Nehéz">3</button>
+          </div>
+        </div>
+
+        <details id="theory" class="theory">
+          <summary>Elmélet és példák</summary>
+          <div id="theoryBody" class="theory-body"></div>
+        </details>
+
+        <article class="card problem">
+          <div class="problem-top">
+            <span class="badge" id="problemNo">1. feladat</span>
+            <button id="newBtn" class="link-btn" title="Másik feladat">Új feladat ↻</button>
+          </div>
+          <p id="prompt" class="prompt"></p>
+          <div id="expr" class="expr math"></div>
+
+          <label for="answer" class="field-label">Végeredmény</label>
+          <input id="answer" class="answer" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" placeholder="pl. 3x^2 - 5x + 2">
+          <div class="keys" id="keys" aria-label="Gyorsgombok"></div>
+          <div id="preview" class="preview" aria-live="polite"></div>
+
+          <details class="work">
+            <summary>Levezetés <span class="muted">(nem kötelező — az AI ezt is átnézi)</span></summary>
+            <textarea id="work" rows="5" placeholder="Írd ide a lépéseidet, soronként egyet…"></textarea>
+          </details>
+
+          <div class="actions">
+            <button id="checkBtn" class="btn primary">Ellenőrzés</button>
+            <button id="aiCheckBtn" class="btn ai">✦ AI ellenőrzés</button>
+            <button id="hintBtn" class="btn">Tipp</button>
+            <button id="showBtn" class="btn ghost">Megoldás</button>
+          </div>
+
+          <div id="feedback" class="feedback" aria-live="polite"></div>
+          <div id="aiBox" class="ai-box" hidden></div>
+        </article>
+
+        <div class="statsbar" id="statsbar"></div>
+
+        <details class="help">
+          <summary>Hogyan írjam be a választ?</summary>
+          <table>
+            <tr><td>hatvány</td><td><code>x^2</code> vagy <code>x²</code> (a <b>x²</b> gombbal is)</td></tr>
+            <tr><td>szorzás</td><td><code>3x</code>, <code>2(x+1)</code>, <code>(x+1)(x-1)</code> — vagy <code>*</code> jellel</td></tr>
+            <tr><td>tört</td><td><code>(x+1)/(x-2)</code> — a számlálót és a nevezőt <b>tedd zárójelbe</b>!</td></tr>
+            <tr><td>zárójel hatványa</td><td><code>(x+3)^2</code></td></tr>
+            <tr><td>negatív szám</td><td><code>-5</code></td></tr>
+          </table>
+          <p class="muted">Gépelés közben az „Így értem:” sorban látod, hogyan értelmezte a program, amit beírtál.</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- ================= SAJÁT FELADAT ================= -->
+    <section id="view-own" class="view own" hidden>
+      <article class="card">
+        <h2>Saját feladat ellenőrzése</h2>
+        <p class="muted">Házi feladat, tankönyvi példa? Írd be a feladatot és a megoldásodat — vagy fotózd le a füzetedet —, és az AI átnézi.</p>
+
+        <label class="field-label" for="ownTask">Feladat</label>
+        <textarea id="ownTask" rows="3" placeholder="pl. Bontsd fel a zárójelet: 3(2x - 4) - (x + 5)"></textarea>
+
+        <label class="field-label" for="ownWork">A megoldásod (lépésenként)</label>
+        <textarea id="ownWork" rows="6" placeholder="pl.&#10;6x - 12 - x + 5&#10;5x - 7"></textarea>
+
+        <div class="upload">
+          <label class="btn" for="ownImage">📷 Fotó a füzetről</label>
+          <input id="ownImage" type="file" accept="image/*" capture="environment" hidden>
+          <span id="ownImageName" class="muted"></span>
+          <button id="ownImageClear" class="link-btn" hidden>eltávolítás</button>
+        </div>
+        <img id="ownImgPreview" class="img-preview" alt="A feltöltött kép előnézete" hidden>
+
+        <label class="check"><input type="checkbox" id="ownFull"> Kérem a teljes, lépésenkénti megoldást is</label>
+
+        <div class="actions"><button id="ownBtn" class="btn ai">✦ AI ellenőrzés</button></div>
+        <div id="ownOut" class="ai-box" hidden></div>
+      </article>
+    </section>
+  </main>
+
+  <dialog id="settings" class="settings">
+    <form method="dialog" id="settingsForm">
+      <h2>AI beállítások</h2>
+      <p class="muted">Az AI-ellenőrzés a Claude API-t használja. Ehhez egy saját API-kulcs kell, amit az
+        <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Anthropic Console</a>-ban hozhatsz létre.</p>
+      <label class="field-label" for="apiKey">API-kulcs</label>
+      <input id="apiKey" type="password" autocomplete="off" placeholder="sk-ant-…">
+      <label class="field-label" for="model">Modell</label>
+      <select id="model"></select>
+      <p class="note">🔒 A kulcs <b>csak ebben a böngészőben</b> tárolódik, és csak az Anthropic API-hoz küldjük el. A Console-ban érdemes havi költségkeretet beállítani. Közös gépen ne mentsd el!</p>
+      <div id="settingsMsg" class="feedback"></div>
+      <div class="actions">
+        <button type="button" id="testKey" class="btn">Kapcsolat tesztelése</button>
+        <button type="button" id="clearKey" class="btn ghost">Kulcs törlése</button>
+        <span class="spacer"></span>
+        <button type="button" id="closeSettings" class="btn ghost">Mégse</button>
+        <button type="button" id="saveSettings" class="btn primary">Mentés</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer>
+    A feladatokat a program véletlenszerűen generálja és saját maga ellenőrzi. Az AI-ellenőrzés a Claude API-val működik.
+  </footer>
+
+  <script src="js/parser.js"></script>
+  <script src="js/poly.js"></script>
+  <script src="js/generators.js"></script>
+  <script src="js/checker.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
