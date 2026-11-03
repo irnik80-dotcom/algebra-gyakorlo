@@ -58,6 +58,21 @@
       `<span>Legjobb sorozat: <b>${state.best}</b></span>` +
       `<span>Összesen megoldva: <b>${total}</b></span>`;
   }
+  // ---------- napló: feladatonként egy bejegyzés ----------
+  // { t: időpont, tp: témakör, lv: szint, e: kifejezés, r: 'ok' | 'wrong' | 'shown', n: próbálkozások, ai: AI-t kért }
+  const LOG_MAX = 3000;
+  let log = store.get('log', []);
+  if (!Array.isArray(log)) log = [];
+  function logEntry() {
+    if (!state.entry) {
+      state.entry = { t: Date.now(), tp: topic().id, lv: state.level, e: state.problem.expr, r: 'wrong', n: 0 };
+      log.push(state.entry);
+      if (log.length > LOG_MAX) log = log.slice(-LOG_MAX);
+    }
+    return state.entry;
+  }
+  const saveLog = () => store.set('log', log);
+
   function bump(field) {
     const id = topic().id;
     const s = state.stats[id] || (state.stats[id] = { ok: 0, tried: 0 });
@@ -86,7 +101,7 @@
   // ---------- feladat ----------
   function newProblem() {
     state.problem = topic().gen(state.level);
-    state.count++; state.tries = 0; state.done = false; state.revealed = false; state.last = null;
+    state.count++; state.tries = 0; state.done = false; state.revealed = false; state.last = null; state.entry = null;
     $('#problemNo').textContent = `${state.count}. feladat · ${['', 'könnyű', 'közepes', 'nehéz'][state.level]}`;
     // a „betű = érték” részeket vastagon kiemeljük: „ha x = −1 és y = −3”
     $('#prompt').innerHTML = esc(state.problem.prompt)
@@ -135,8 +150,11 @@
     if (res.kind === 'empty' || res.kind === 'syntax') { setFeedback('warn', esc(res.msg)); return; }
     state.tries++;
     if (state.tries === 1) bump('tried');
+    const en = logEntry();
+    en.n = state.tries;
     if (res.kind === 'correct') {
       state.done = true;
+      if (en.r !== 'shown') en.r = 'ok';
       if (!state.revealed) {
         bump('ok');
         state.streak++;
@@ -154,10 +172,12 @@
       setFeedback('bad', `<strong>✘ Nem jó</strong>${esc(res.msg)}` +
         (state.tries >= 2 ? '<br>Írd le a levezetésedet, és kérd az <b>AI ellenőrzést</b> — megmutatja, hol csúszott el.' : ''));
     }
+    saveLog();
     updateProgress();
   }
 
   function showSolution() {
+    if (!state.done) { const en = logEntry(); en.r = 'shown'; saveLog(); }
     state.revealed = true;
     state.streak = 0;
     setFeedback('info', `<strong>A helyes eredmény:</strong>${mathSpan(state.problem.answer)}` +
@@ -207,6 +227,7 @@
       return;
     }
     const verdict = verdictText();
+    logEntry().ai = 1; saveLog();
     if (!state.revealed && !state.done && state.last === null) setFeedback('', '');
     runAi('AI ellenőrzés', st => AI.review(topic(), state.problem, ans, work, verdict, st));
   }
@@ -350,6 +371,125 @@
     $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === v));
     $('#view-practice').hidden = v !== 'practice';
     $('#view-own').hidden = v !== 'own';
+    $('#view-results').hidden = v !== 'results';
+    if (v === 'results') renderResults();
+  }
+
+  // ---------- eredmények ----------
+  const DAY = 86400000;
+  const startOfDay = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+  const topicById = id => TOPICS.find(t => t.id === id);
+  const topicNo = id => TOPICS.findIndex(t => t.id === id) + 1;
+  const pct = (a, b) => (b ? Math.round(100 * a / b) + '%' : '–');
+  function summarize(list) {
+    const done = list.length, ok = list.filter(e => e.r === 'ok').length;
+    const first = list.filter(e => e.r === 'ok' && e.n === 1).length;
+    return { done, ok, first, shown: list.filter(e => e.r === 'shown').length, ai: list.filter(e => e.ai).length };
+  }
+  const fmtDate = t => new Date(t).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' });
+  const fmtTime = t => new Date(t).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
+  function fmtWhen(t) {
+    const d0 = startOfDay(Date.now());
+    if (t >= d0) return 'ma ' + fmtTime(t);
+    if (t >= d0 - DAY) return 'tegnap ' + fmtTime(t);
+    return fmtDate(t) + ' ' + fmtTime(t);
+  }
+  function minutesActive(list) {
+    // gyakorlással töltött idő becslése: egymást követő feladatok közti szünetek (max. 5 perc) összege
+    const ts = list.map(e => e.t).sort((a, b) => a - b);
+    let m = 0;
+    for (let i = 1; i < ts.length; i++) { const d = ts[i] - ts[i - 1]; if (d < 5 * 60e3) m += d; }
+    return Math.round((m + ts.length * 30e3) / 60e3);
+  }
+
+  function renderResults() {
+    $('#resName').value = store.get('name', '');
+    const now = Date.now(), d0 = startOfDay(now);
+    const today = log.filter(e => e.t >= d0), week = log.filter(e => e.t >= d0 - 6 * DAY);
+    const card = (title, list) => {
+      const s = summarize(list);
+      return `<div class="stat"><span class="stat-t">${title}</span><b>${s.ok}<small> / ${s.done}</small></b>` +
+        `<span>helyes · ${pct(s.ok, s.done)}</span><span class="muted">${s.done ? 'kb. ' + minutesActive(list) + ' perc' : '&nbsp;'}</span></div>`;
+    };
+    $('#resCards').innerHTML = card('Ma', today) + card('Elmúlt 7 nap', week) + card('Összesen', log);
+
+    // 14 napos oszlopdiagram
+    const days = [];
+    for (let i = 13; i >= 0; i--) {
+      const a = d0 - i * DAY, b = a + DAY;
+      const l = log.filter(e => e.t >= a && e.t < b);
+      days.push({ a, n: l.length, ok: l.filter(e => e.r === 'ok').length });
+    }
+    const max = Math.max(5, ...days.map(d => d.n));
+    $('#resChart').innerHTML = days.map(d => {
+      const h = Math.round(100 * d.n / max), ho = d.n ? Math.round(100 * d.ok / d.n) : 0;
+      const lbl = new Date(d.a).toLocaleDateString('hu-HU', { weekday: 'narrow' });
+      return `<div class="bar" title="${fmtDate(d.a)}: ${d.n} feladat, ${d.ok} helyes">` +
+        `<span class="bar-n">${d.n || ''}</span><div class="bar-col" style="height:${h}%"><div class="bar-ok" style="height:${ho}%"></div></div>` +
+        `<span class="bar-l${d.a === d0 ? ' today' : ''}">${lbl}</span></div>`;
+    }).join('');
+
+    // témakörönként
+    const rows = TOPICS.map(t => {
+      const l = log.filter(e => e.tp === t.id);
+      if (!l.length) return '';
+      const s = summarize(l);
+      const lv = [1, 2, 3].map(k => l.filter(e => e.lv === k).length);
+      const recent = l.slice(-10), rs = summarize(recent);
+      return `<tr><td><span class="tnum">${topicNo(t.id)}</span> ${esc(t.title)}</td><td>${s.done}</td>` +
+        `<td><b>${s.ok}</b> <span class="muted">(${pct(s.ok, s.done)})</span></td>` +
+        `<td class="hide-sm">${s.first}</td><td class="hide-sm">${lv.join(' / ')}</td>` +
+        `<td><span class="pill ${rs.done >= 3 ? (rs.ok / rs.done >= 0.8 ? 'good' : rs.ok / rs.done >= 0.5 ? 'mid' : 'low') : ''}">${pct(rs.ok, rs.done)}</span></td>` +
+        `<td class="hide-sm">${fmtWhen(l[l.length - 1].t)}</td></tr>`;
+    }).join('');
+    $('#resTopics').innerHTML = rows ||
+      '<tr><td colspan="7" class="muted">Még nincs megoldott feladat. Az eredmények a gyakorlás közben gyűlnek.</td></tr>';
+
+    // utolsó feladatok
+    const icon = { ok: '<span class="r-ok">✔</span>', wrong: '<span class="r-bad">✘</span>', shown: '<span class="r-shown">👁</span>' };
+    $('#resRecent').innerHTML = log.slice(-20).reverse().map(e => {
+      const t = topicById(e.tp);
+      return `<li>${icon[e.r] || ''}<span class="math">${R(e.e)}</span>` +
+        `<span class="muted">${t ? topicNo(e.tp) + '. ' + esc(t.title) : ''} · ${e.lv}. szint${e.n > 1 ? ' · ' + e.n + '. próbára' : ''}${e.ai ? ' · AI' : ''} · ${fmtWhen(e.t)}</span></li>`;
+    }).join('') || '<li class="muted">Még nincs feladat.</li>';
+  }
+
+  function reportText() {
+    const name = store.get('name', '').trim();
+    const now = Date.now(), d0 = startOfDay(now);
+    const line = (title, l) => { const s = summarize(l); return `${title}: ${s.done} feladat, ${s.ok} helyes (${pct(s.ok, s.done)})` + (s.shown ? `, ${s.shown}× megnézte a megoldást` : '') + (s.done ? `, kb. ${minutesActive(l)} perc` : ''); };
+    const week = log.filter(e => e.t >= d0 - 6 * DAY);
+    let txt = `📊 Algebra gyakorló${name ? ' – ' + name : ''}\n${new Date(now).toLocaleString('hu-HU')}\n\n`;
+    txt += line('Ma', log.filter(e => e.t >= d0)) + '\n';
+    txt += line('Elmúlt 7 nap', week) + '\n';
+    txt += line('Összesen', log) + '\n';
+    const per = TOPICS.map(t => ({ t, l: week.filter(e => e.tp === t.id) })).filter(x => x.l.length);
+    if (per.length) {
+      txt += '\nTémakörönként (7 nap):\n';
+      for (const { t, l } of per) { const s = summarize(l); txt += `• ${topicNo(t.id)}. ${t.title}: ${s.ok}/${s.done} (${pct(s.ok, s.done)}), szint: ${[...new Set(l.map(e => e.lv))].sort().join(',')}\n`; }
+    }
+    const weak = per.map(({ t, l }) => ({ t, s: summarize(l) })).filter(x => x.s.done >= 3 && x.s.ok / x.s.done < 0.6);
+    if (weak.length) txt += '\nMég gyakorolni kell: ' + weak.map(x => x.t.title).join(', ') + '\n';
+    if (log.length) txt += `\nUtoljára gyakorolt: ${fmtWhen(log[log.length - 1].t)}`;
+    return txt;
+  }
+
+  function buildResults() {
+    $('#resName').addEventListener('input', e => store.set('name', e.target.value));
+    $('#resShare').addEventListener('click', async () => {
+      const txt = reportText(), msg = $('#resMsg');
+      if (navigator.share) {
+        try { await navigator.share({ title: 'Algebra gyakorló – eredmények', text: txt }); return; }
+        catch (e) { if (e && e.name === 'AbortError') return; }
+      }
+      try { await navigator.clipboard.writeText(txt); msg.className = 'feedback ok'; msg.textContent = '✔ Kimásolva — illeszd be egy üzenetbe.'; }
+      catch (e) { msg.className = 'feedback info'; msg.innerHTML = 'Másold ki:<pre class="report">' + esc(txt) + '</pre>'; }
+    });
+    $('#resReset').addEventListener('click', () => {
+      if (!window.confirm('Biztosan törlöd az összes eredményt erről az eszközről?')) return;
+      log = []; saveLog(); state.stats = {}; store.set('stats', {}); state.best = 0; store.set('best', 0);
+      renderResults(); updateProgress();
+    });
   }
 
   // ---------- beállító link: …/#kulcs=AIza… ----------
@@ -397,7 +537,7 @@
     if (inApp) document.documentElement.classList.add('in-app');
     setupInstall(inApp);
     if (window.matchMedia('(max-width: 860px)').matches) $('#answer').placeholder = 'Végeredmény…';
-    buildTopics(); buildKeys(); buildSettings(); buildOwn(); refreshAiStatus();
+    buildTopics(); buildKeys(); buildResults(); buildSettings(); buildOwn(); refreshAiStatus();
     $$('.levels button').forEach(b => b.addEventListener('click', () => setLevel(+b.dataset.level)));
     $$('.levels button').forEach(b => b.classList.toggle('active', +b.dataset.level === state.level));
     $$('.tab').forEach(t => t.addEventListener('click', () => showView(t.dataset.view)));

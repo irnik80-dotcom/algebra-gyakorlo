@@ -176,5 +176,5 @@ public class MainActivity extends Activity {
     protected void onResume() { super.onResume(); web.onResume(); }
 
     /** Verziószám a user-agenthez (a weboldal így tudja, hogy appban fut). */
-    static final class BuildConfigVersion { static final String NAME = "1.0"; }
+    static final class BuildConfigVersion { static final String NAME = "1.1"; }
 }

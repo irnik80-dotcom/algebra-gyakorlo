@@ -1,6 +1,6 @@
 /* Algebra gyakorló — service worker: offline működés + gyors indulás.
  * Új verziónál elég a VERSION-t átírni (az index.html ?v= értékével együtt). */
-const VERSION = '20261103f';
+const VERSION = '20261103g';
 const CACHE = 'algebra-' + VERSION;
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest',

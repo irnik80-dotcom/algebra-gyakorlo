@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#243a8f">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="css/style.css?v=20261103f">
+  <link rel="stylesheet" href="css/style.css?v=20261103g">
 </head>
 <body>
   <header class="top">
@@ -26,6 +26,7 @@
     <nav class="tabs" role="tablist">
       <button class="tab active" data-view="practice" role="tab">Gyakorlás</button>
       <button class="tab" data-view="own" role="tab">Saját feladat</button>
+      <button class="tab" data-view="results" role="tab">Eredmények</button>
     </nav>
     <button id="settingsBtn" class="ai-status" title="AI beállítások"><span class="dot"></span><span id="aiStatusText" class="long">AI</span><span class="short">AI</span></button>
   </header>
@@ -130,6 +131,33 @@
         <div id="ownOut" class="ai-box" hidden></div>
       </article>
     </section>
+    <!-- ================= EREDMÉNYEK ================= -->
+    <section id="view-results" class="view results" hidden>
+      <article class="card">
+        <div class="res-head">
+          <h2>Eredmények</h2>
+          <label class="res-name"><span>Ki gyakorol?</span><input id="resName" placeholder="Név (nem kötelező)" maxlength="30" autocomplete="off"></label>
+        </div>
+        <div id="resCards" class="stats"></div>
+        <h3>Az elmúlt 14 nap</h3>
+        <div id="resChart" class="chart" aria-label="Napi feladatszám"></div>
+        <p class="legend"><span class="sw sw-ok"></span> helyes &nbsp; <span class="sw sw-all"></span> többi</p>
+        <h3>Témakörönként</h3>
+        <div class="table-wrap"><table class="res-table">
+          <thead><tr><th>Témakör</th><th>Feladat</th><th>Helyes</th><th class="hide-sm">Elsőre</th><th class="hide-sm">Szint 1/2/3</th><th title="Az utolsó 10 feladat pontossága">Utóbbi</th><th class="hide-sm">Utoljára</th></tr></thead>
+          <tbody id="resTopics"></tbody>
+        </table></div>
+        <h3>Utolsó feladatok</h3>
+        <ul id="resRecent" class="recent"></ul>
+        <div class="actions">
+          <button id="resShare" class="btn primary">📤 Eredmények küldése</button>
+          <span class="spacer"></span>
+          <button id="resReset" class="btn ghost">Eredmények törlése</button>
+        </div>
+        <div id="resMsg" class="feedback"></div>
+        <p class="muted small">Az eredmények ezen az eszközön tárolódnak. Az „Eredmények küldése” gombbal üzenetben (Messenger, Viber, e-mail…) elküldhető az összesítő.</p>
+      </article>
+    </section>
   </main>
 
   <dialog id="settings" class="settings">
@@ -161,14 +189,14 @@
   <footer>
     <button id="installBtn" class="apk-link" hidden>📲 Telepítés a kezdőképernyőre</button>
     <a id="apkLink" class="apk-link" href="apk/algebra-gyakorlo.apk" download>📱 Android-app (APK)</a><br>
-    A feladatokat a program véletlenszerűen generálja és saját maga ellenőrzi. Az AI-ellenőrzés a Google Gemini ingyenes API-jával működik. · v20261103f
+    A feladatokat a program véletlenszerűen generálja és saját maga ellenőrzi. Az AI-ellenőrzés a Google Gemini ingyenes API-jával működik. · v20261103g
   </footer>
 
-  <script src="js/parser.js?v=20261103f"></script>
-  <script src="js/poly.js?v=20261103f"></script>
-  <script src="js/generators.js?v=20261103f"></script>
-  <script src="js/checker.js?v=20261103f"></script>
-  <script src="js/ai.js?v=20261103f"></script>
-  <script src="js/app.js?v=20261103f"></script>
+  <script src="js/parser.js?v=20261103g"></script>
+  <script src="js/poly.js?v=20261103g"></script>
+  <script src="js/generators.js?v=20261103g"></script>
+  <script src="js/checker.js?v=20261103g"></script>
+  <script src="js/ai.js?v=20261103g"></script>
+  <script src="js/app.js?v=20261103g"></script>
 </body>
 </html>
