@@ -1,0 +1,55 @@
+plugins { id 'com.android.application' }
+
+// A webes gyakorló fájljait (index.html, css/, js/) a repó gyökeréből másoljuk az APK-ba,
+// így az app és a weboldal mindig ugyanazt a kódot használja.
+def webRoot = rootProject.file('..')
+def wwwOut = layout.buildDirectory.dir('generated/www')
+tasks.register('copyWeb', Copy) {
+    from(webRoot) { include 'index.html', 'css/**', 'js/**' }
+    into wwwOut.map { it.dir('www') }
+}
+
+def ksFile = rootProject.file('keystore.properties')
+def ks = new Properties()
+if (ksFile.exists()) ksFile.withInputStream { ks.load(it) }
+
+android {
+    namespace 'io.github.irnik80dotcom.algebra'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'io.github.irnik80dotcom.algebra'
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+    }
+
+    signingConfigs {
+        release {
+            if (ksFile.exists()) {
+                storeFile rootProject.file(ks['storeFile'])
+                storePassword ks['storePassword']
+                keyAlias ks['keyAlias']
+                keyPassword ks['keyPassword']
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (ksFile.exists()) signingConfig signingConfigs.release
+        }
+    }
+    sourceSets { main { assets.srcDirs += wwwOut } }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+tasks.named('preBuild') { dependsOn 'copyWeb' }
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.12.1'
+    implementation 'androidx.core:core:1.13.1'
+}

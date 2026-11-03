@@ -59,6 +59,16 @@ Helyben is kipróbálható: elég duplán kattintani az `index.html`-re.
 
 **Élő változat:** <https://irnik80-dotcom.github.io/algebra-gyakorlo/>
 
+## Android-app
+
+Letöltés telefonon: **<https://irnik80-dotcom.github.io/algebra-gyakorlo/apk/algebra-gyakorlo.apk>**
+(Telepítéskor engedélyezni kell az „ismeretlen forrásból származó alkalmazások” telepítését a böngészőnek.)
+
+Az app ugyanazt a gyakorlót tartalmazza, beépítve: internet nélkül is működik, csak az AI-hoz kell net.
+A forrás az `android/` mappában van (WebView + a repó `index.html`, `css/`, `js/` fájljai, építéskor bemásolva).
+
+Építés: `cd android && gradle assembleRelease` (Android SDK 35 kell; az aláíráshoz `android/keystore.properties`, ami nincs a repóban).
+
 ## Az AI beállítása (ingyenes)
 
 Az oldalba **be van építve egy közös Gemini-kulcs**, ezért az AI beállítás nélkül, minden eszközön azonnal működik. Ha a közös keret elfogy, vagy saját kulcsot szeretnél, add meg a beállításokban — az felülírja a beépítettet.
@@ -101,6 +111,8 @@ js/checker.js       egyenlőség- és alakellenőrzés
 js/ai.js            Gemini API-hívások, modellválasztás, promptok
 js/app.js           felület
 tests/run-tests.js  tesztek (node tests/run-tests.js)
+android/            Android-app (WebView)
+apk/                a lefordított APK
 ```
 
 Nincs külső függőség és nincs build-lépés. A teszt minden témakör minden szintjén 400 feladatot generál, és ellenőrzi, hogy a program saját megoldása helyes és átmegy az ellenőrzőn.

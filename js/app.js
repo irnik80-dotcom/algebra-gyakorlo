@@ -371,6 +371,7 @@
 
   // ---------- indítás ----------
   function init() {
+    if (/AlgebraGyakorloApp\//.test(navigator.userAgent)) document.documentElement.classList.add('in-app');
     if (window.matchMedia('(max-width: 860px)').matches) $('#answer').placeholder = 'Végeredmény…';
     buildTopics(); buildKeys(); buildSettings(); buildOwn(); refreshAiStatus();
     $$('.levels button').forEach(b => b.addEventListener('click', () => setLevel(+b.dataset.level)));
