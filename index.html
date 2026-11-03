@@ -132,13 +132,17 @@
   <dialog id="settings" class="settings">
     <form method="dialog" id="settingsForm">
       <h2>AI beállítások</h2>
-      <p class="muted">Az AI-ellenőrzés a Claude API-t használja. Ehhez egy saját API-kulcs kell, amit az
-        <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Anthropic Console</a>-ban hozhatsz létre.</p>
+      <p class="muted">Az AI-ellenőrzés a Google <b>Gemini</b> modellt használja, <b>ingyenes</b> API-kulccsal. Így szerezhetsz egyet (1 perc, Google-fiók kell):</p>
+      <ol class="steps">
+        <li>Nyisd meg: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></li>
+        <li>Kattints a <b>Create API key</b> gombra.</li>
+        <li>Másold ki a kulcsot (<code>AIza…</code>), és illeszd be ide.</li>
+      </ol>
       <label class="field-label" for="apiKey">API-kulcs</label>
-      <input id="apiKey" type="password" autocomplete="off" placeholder="sk-ant-…">
+      <input id="apiKey" type="password" autocomplete="off" placeholder="AIza…">
       <label class="field-label" for="model">Modell</label>
       <select id="model"></select>
-      <p class="note">🔒 A kulcs <b>csak ebben a böngészőben</b> tárolódik, és csak az Anthropic API-hoz küldjük el. A Console-ban érdemes havi költségkeretet beállítani. Közös gépen ne mentsd el!</p>
+      <p class="note">🔒 A kulcs <b>csak ebben a böngészőben</b> tárolódik, és csak a Google Gemini API-hoz küldjük el. Ingyenes kulcsnál nem kell bankkártya, és nem kerül pénzbe — ha elfogy a napi keret, másnap újra működik. Közös gépen ne mentsd el!</p>
       <div id="settingsMsg" class="feedback"></div>
       <div class="actions">
         <button type="button" id="testKey" class="btn">Kapcsolat tesztelése</button>
@@ -151,7 +155,7 @@
   </dialog>
 
   <footer>
-    A feladatokat a program véletlenszerűen generálja és saját maga ellenőrzi. Az AI-ellenőrzés a Claude API-val működik.
+    A feladatokat a program véletlenszerűen generálja és saját maga ellenőrzi. Az AI-ellenőrzés a Google Gemini ingyenes API-jával működik.
   </footer>
 
   <script src="js/parser.js"></script>

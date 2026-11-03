@@ -1,7 +1,7 @@
 # Algebra gyakorló ✏️
 
 Böngészőben futó matekgyakorló **algebrai kifejezésekhez** — a helyettesítési értéktől az algebrai törtek összeadásáig.
-A feladatokat a program végtelen sok változatban generálja és **azonnal ellenőrzi**, a **Claude AI** pedig átnézi a diák levezetését, megmutatja az első hibát, tippet ad, vagy lépésenként elmagyarázza a megoldást.
+A feladatokat a program végtelen sok változatban generálja és **azonnal ellenőrzi**, az **AI (Google Gemini, ingyenes)** pedig átnézi a diák levezetését, megmutatja az első hibát, tippet ad, vagy lépésenként elmagyarázza a megoldást.
 
 Nem kell hozzá szerver, telepítés vagy fiók: egy statikus weboldal, ami **GitHub Pages**-en ingyen fut.
 
@@ -33,7 +33,7 @@ Minden témakörben: rövid elmélet példákkal, **3 nehézségi szint**, végt
 - és hogy **megfelelő-e az alakja**: összevonta-e a tagokat, teljesen kiemelt-e, végig szorzattá alakította-e, egyszerűsítette-e a törtet. Ilyenkor nem csak „rossz”-at mond, hanem pl. „Majdnem! Az egyik zárójelben maradt még közös tényező.”
 - Gépelés közben az **„Így értem:”** sor szépen szedve mutatja, hogyan értelmezte a beírást — így a zárójelezési hibák rögtön látszanak.
 
-**AI-val (Claude):**
+**AI-val (Google Gemini — ingyenes):**
 - **✦ AI ellenőrzés** — átnézi a levezetést lépésenként, megnevezi az első hibát és a megsértett szabályt, de a teljes megoldást nem árulja el.
 - **Tipp** — egyetlen rövid segítség a következő lépéshez.
 - **Lépésenkénti levezetés** — a „Megoldás” gomb után kérhető.
@@ -59,18 +59,20 @@ Helyben is kipróbálható: elég duplán kattintani az `index.html`-re.
 
 **Élő változat:** <https://irnik80-dotcom.github.io/algebra-gyakorlo/>
 
-## Az AI beállítása
+## Az AI beállítása (ingyenes)
 
-1. Hozz létre API-kulcsot: <https://console.anthropic.com/settings/keys> (egyenleg feltöltése szükséges).
-2. Az oldalon jobb fent: **AI beállítása** → kulcs beillesztése → **Kapcsolat tesztelése** → **Mentés**.
+1. Nyisd meg: <https://aistudio.google.com/apikey> (Google-fiókkal lépj be).
+2. **Create API key** → másold ki a kulcsot (`AIza…`). Bankkártya nem kell.
+3. Az oldalon jobb fent: **AI beállítása** → kulcs beillesztése → **Kapcsolat tesztelése** → **Mentés**.
 
-**Biztonság:**
-- A kulcs **nincs benne a kódban és a repóban** — csak annak a böngészőnek a `localStorage`-ában tárolódik, ahol beírtad, és csak az Anthropic API-nak (`api.anthropic.com`) küldjük el.
+A modell alapból **Automatikus**: az oldal lekérdezi, mely Gemini Flash modellek érhetők el a kulccsal, és a legújabbat használja. Ha annak elfogyott a percenkénti vagy napi ingyenes kerete, magától átvált a következőre. A beállításokban kézzel is választhatsz modellt.
+
+**Biztonság és költség:**
+- A kulcs **nincs benne a kódban és a repóban** — csak annak a böngészőnek a `localStorage`-ában tárolódik, ahol beírtad, és csak a Google Gemini API-nak (`generativelanguage.googleapis.com`) küldjük el.
 - Ezért a nyilvános GitHub-oldalt bárki használhatja, de AI-t csak az, aki saját kulcsot ad meg.
-- Gyereknek: a szülő írja be a kulcsot a gyerek gépén/telefonján. A Console-ban állíts be **havi költségkeretet** (Settings → Limits).
+- Ingyenes kulcsnál nincs költség; ha elfogy a napi keret, másnap (kb. reggel 9-kor, magyar idő szerint) újra működik.
+- Megjegyzés: az ingyenes szinten a Google a beküldött szövegeket felhasználhatja a szolgáltatás fejlesztésére — ezért ne írjatok bele személyes adatot.
 - Közös gépen a beállításokban a **Kulcs törlése** gombbal eltávolítható.
-
-**Költség:** egy ellenőrzés jellemzően néhány ezer token; az alapértelmezett *Sonnet* helyett az olcsóbb *Haiku* is választható a beállításokban.
 
 ## Gépelési súgó
 
@@ -90,7 +92,7 @@ js/parser.js        kifejezés-értelmező, kiértékelő, HTML-szedés
 js/poly.js          polinomműveletek
 js/generators.js    a 12 témakör: elmélet + feladatgenerátorok
 js/checker.js       egyenlőség- és alakellenőrzés
-js/ai.js            Claude API-hívások, promptok
+js/ai.js            Gemini API-hívások, modellválasztás, promptok
 js/app.js           felület
 tests/run-tests.js  tesztek (node tests/run-tests.js)
 ```

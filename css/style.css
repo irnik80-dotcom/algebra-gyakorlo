@@ -230,3 +230,5 @@ footer { text-align: center; font-size: .8rem; color: var(--muted); padding: 18p
   .tabs { order: 3; width: 100%; justify-content: center; }
   .actions .btn { flex: 1 1 auto; justify-content: center; }
 }
+
+.steps { margin: 8px 0 4px; padding-left: 1.3em; line-height: 1.7; font-size: .92rem; }

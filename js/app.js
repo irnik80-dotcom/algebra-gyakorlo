@@ -226,9 +226,19 @@
     $('#settingsBtn').classList.toggle('on', on);
     $('#aiStatusText').textContent = on ? 'AI bekapcsolva' : 'AI beállítása';
   }
+  function fillModels(list) {
+    const sel = $('#model'), cur = AI.getModel();
+    sel.innerHTML = '';
+    const add = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); };
+    add(AI.AUTO, 'Automatikus (ajánlott) — a legjobb ingyenes Flash modell');
+    for (const mm of list || []) add(mm.id, mm.label + ' (' + mm.id + ')');
+    if (cur !== AI.AUTO && !(list || []).some(mm => mm.id === cur)) add(cur, cur);
+    sel.value = cur;
+  }
   function openSettings(msg) {
     $('#apiKey').value = AI.getKey();
-    $('#model').value = AI.getModel();
+    fillModels([]);
+    if (AI.hasKey()) AI.listModels().then(fillModels).catch(() => {});
     const m = $('#settingsMsg');
     m.className = 'feedback' + (msg ? ' warn' : ''); m.textContent = msg || '';
     const d = $('#settings');
@@ -236,8 +246,6 @@
   }
   function closeSettings() { const d = $('#settings'); if (d.close) d.close(); else d.removeAttribute('open'); }
   function buildSettings() {
-    const sel = $('#model');
-    for (const mm of AI.MODELS) { const o = document.createElement('option'); o.value = mm.id; o.textContent = mm.label; sel.appendChild(o); }
     $('#settingsBtn').addEventListener('click', () => openSettings());
     $('#closeSettings').addEventListener('click', closeSettings);
     $('#saveSettings').addEventListener('click', () => {
@@ -255,11 +263,16 @@
       m.className = 'feedback info'; m.innerHTML = '<span class="loading"><i></i><i></i><i></i> tesztelés…</span>';
       try {
         await AI.test();
-        m.className = 'feedback ok'; m.textContent = '✔ A kapcsolat működik! Ne felejtsd el menteni.';
+        const used = AI.lastModelUsed();
+        m.className = 'feedback ok'; m.textContent = '✔ A kapcsolat működik' + (used ? ' (' + used + ')' : '') + '! Ne felejtsd el menteni.';
+        const sel = $('#model').value;
+        fillModels(await AI.listModels()); $('#model').value = sel;
       } catch (e) {
         m.className = 'feedback bad'; m.textContent = e.message;
       } finally {
+        const sel = $('#model').value;
         AI.setKey(prevKey); AI.setModel(prevModel);
+        $('#model').value = sel;
       }
     });
   }

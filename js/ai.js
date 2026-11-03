@@ -1,64 +1,128 @@
-/* Algebra gyakorló — AI-ellenőrzés a Claude API-val (közvetlenül a böngészőből).
- * Az API-kulcs csak a böngésző localStorage-ában tárolódik, és csak az Anthropic API-nak megy el. */
+/* Algebra gyakorló — AI-ellenőrzés a Google Gemini API-val (ingyenes AI Studio kulccsal, közvetlenül a böngészőből).
+ * Az API-kulcs csak a böngésző localStorage-ában tárolódik, és csak a Google Gemini API-nak megy el. */
 (function (G) {
   'use strict';
   const Alg = G.Alg;
 
-  const MODELS = [
-    { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5 — ajánlott' },
-    { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5 — gyors, olcsó' },
-    { id: 'claude-opus-5-5', label: 'Claude Opus 5.5 — legalaposabb' },
-  ];
-  const DEFAULT_MODEL = MODELS[0].id;
+  // Gemini (Google AI Studio) — ingyenes kulccsal is működik.
+  const API = 'https://generativelanguage.googleapis.com/v1beta';
+  const AUTO = 'auto';
+  // Ha a modellista nem kérdezhető le, ezekkel próbálkozunk sorban.
+  const FALLBACK = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-flash-lite-latest', 'gemini-2.5-flash-lite'];
 
   const ls = {
     get(k) { try { return localStorage.getItem('algebra.' + k); } catch (e) { return null; } },
     set(k, v) { try { if (v == null || v === '') localStorage.removeItem('algebra.' + k); else localStorage.setItem('algebra.' + k, v); } catch (e) { /* ignore */ } },
   };
   let memKey = null; // ha a localStorage nem elérhető
-  const getKey = () => ls.get('apiKey') || memKey || '';
-  const setKey = k => { memKey = k || null; ls.set('apiKey', k); };
-  const getModel = () => ls.get('model') || DEFAULT_MODEL;
-  const setModel = m => ls.set('model', m);
+  const getKey = () => ls.get('geminiKey') || memKey || '';
+  const setKey = k => { memKey = k || null; ls.set('geminiKey', k); available = null; };
+  const getModel = () => ls.get('geminiModel') || AUTO;
+  const setModel = m => ls.set('geminiModel', m === AUTO ? '' : m);
   const hasKey = () => !!getKey();
 
   const SYSTEM = `Türelmes, barátságos magyar matematikatanár vagy, aki 12–15 éves diákoknak segít az algebrai kifejezések gyakorlásában.
 Szabályok:
 - Mindig magyarul válaszolj, tegezve a diákot, rövid, világos mondatokban.
-- Matematikai jelöléshez: hatvány ^ jellel (pl. x^2), szorzás · jellel, törtek (számláló)/(nevező) alakban. LaTeX-et NE használj.
+- Matematikai jelöléshez: hatvány ^ jellel (pl. x^2), szorzás · jellel, törtek (számláló)/(nevező) alakban. LaTeX-et és $ jeleket NE használj.
 - Ha a diák hibázott: NE add meg rögtön a teljes megoldást. Keresd meg az ELSŐ hibás lépést, nevezd meg, melyik szabályt sértette meg, és adj egy célzott tippet a javításhoz.
 - Ha a válasz helyes: dicsérd meg röviden és konkrétan; ha van, mutass egy hasznos észrevételt vagy gyorsabb utat.
 - Legfeljebb kb. 150 szóban válaszolj, hacsak nem kérnek teljes levezetést.
 - Bátorító hangnem, de ne légy szirupos.`;
 
+  // ---------- elérhető modellek ----------
+  let available = null; // [{id, label}]
+  function version(id) { const m = id.match(/(\d+(?:\.\d+)?)/); return m ? parseFloat(m[1]) : 0; }
+  function rank(id) {
+    // nagyobb = jobb: újabb verzió, flash > flash-lite, stabil > preview
+    let r = version(id) * 10;
+    if (/flash-lite/.test(id)) r -= 3; else if (/flash/.test(id)) r += 0; else r -= 6;
+    if (/preview|exp/.test(id)) r -= 2;
+    return r;
+  }
+  async function listModels() {
+    if (available) return available;
+    const key = getKey();
+    try {
+      const res = await fetch(`${API}/models?pageSize=200`, { headers: { 'x-goog-api-key': key } });
+      if (!res.ok) throw new Error(String(res.status));
+      const j = await res.json();
+      available = (j.models || [])
+        .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+        .map(m => ({ id: m.name.replace(/^models\//, ''), label: m.displayName || m.name }))
+        .filter(m => /^gemini-/.test(m.id) && /flash|pro/.test(m.id)
+          && !/tts|audio|live|image|embed|robotics|computer|thinking-exp|transcrib|translat/.test(m.id))
+        .sort((a, b) => rank(b.id) - rank(a.id));
+      if (!available.length) available = FALLBACK.map(id => ({ id, label: id }));
+    } catch (e) {
+      available = FALLBACK.map(id => ({ id, label: id }));
+    }
+    return available;
+  }
+  async function candidates() {
+    const chosen = getModel();
+    const list = (await listModels()).map(m => m.id).filter(id => !/pro/.test(id) || chosen === id);
+    const order = chosen !== AUTO ? [chosen, ...list.filter(id => id !== chosen)] : list;
+    return order.slice(0, 4);
+  }
+
+  function errorFor(status, detail) {
+    if (status === 400 && /api key|API_KEY/i.test(detail)) { const e = new Error('Érvénytelen API-kulcs. Ellenőrizd a beállításokban!'); e.code = 'NOKEY'; return e; }
+    if (status === 401 || status === 403) { const e = new Error('A kulcs nem érvényes, vagy nincs engedélyezve a Gemini API. Ellenőrizd a beállításokban!'); e.code = 'NOKEY'; return e; }
+    if (status === 429) return new Error('Elfogyott az ingyenes keret (percenkénti vagy napi limit). Várj egy percet, vagy próbáld holnap — a napi keret éjfél (amerikai idő), azaz kb. reggel 9 körül újraindul.');
+    return new Error(`Az AI hibát jelzett (${status}). ${detail}`);
+  }
+
   async function call(messages, maxTokens = 900, system = SYSTEM) {
     const key = getKey();
     if (!key) { const e = new Error('Nincs beállítva API-kulcs.'); e.code = 'NOKEY'; throw e; }
-    let res;
-    try {
-      res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': key,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-        },
-        body: JSON.stringify({ model: getModel(), max_tokens: maxTokens, system, messages }),
-      });
-    } catch (e) {
-      throw new Error('Nem sikerült elérni az AI-t (nincs internet, vagy a hálózat blokkolja).');
+    const contents = messages.map(m => {
+      const parts = (typeof m.content === 'string' ? [{ type: 'text', text: m.content }] : m.content).map(p =>
+        p.type === 'image' ? { inline_data: { mime_type: p.source.media_type, data: p.source.data } } : { text: p.text });
+      return { role: m.role === 'assistant' ? 'model' : 'user', parts };
+    });
+    const body = JSON.stringify({
+      systemInstruction: { parts: [{ text: system }] },
+      contents,
+      // a "gondolkodó" modelleknél a gondolkodás is ebből a keretből fogy, ezért bőkezű
+      generationConfig: { maxOutputTokens: Math.max(4096, maxTokens * 4), temperature: 0.4 },
+    });
+    let lastErr = null;
+    for (const model of await candidates()) {
+      let res;
+      try {
+        res = await fetch(`${API}/models/${encodeURIComponent(model)}:generateContent`, {
+          method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': key }, body,
+        });
+      } catch (e) {
+        throw new Error('Nem sikerült elérni az AI-t (nincs internet, vagy a hálózat blokkolja).');
+      }
+      if (!res.ok) {
+        let detail = '';
+        try { const j = await res.json(); detail = (j.error && j.error.message) || ''; } catch (e) { /* ignore */ }
+        lastErr = errorFor(res.status, detail);
+        if (lastErr.code === 'NOKEY') throw lastErr;
+        // túlterhelt / elfogyott keret / nem létező modell → próbáljuk a következőt
+        if ([404, 429, 500, 503].includes(res.status)) continue;
+        throw lastErr;
+      }
+      const j = await res.json();
+      const cand = (j.candidates || [])[0];
+      if (!cand) {
+        const why = j.promptFeedback && j.promptFeedback.blockReason;
+        throw new Error('Az AI nem válaszolt' + (why ? ` (${why}).` : '.'));
+      }
+      const text = ((cand.content && cand.content.parts) || []).filter(p => p.text && !p.thought).map(p => p.text).join('').trim();
+      if (!text) {
+        if (cand.finishReason === 'MAX_TOKENS') { lastErr = new Error('Az AI válasza túl hosszú lett, próbáld újra.'); continue; }
+        throw new Error('Az AI üres választ adott' + (cand.finishReason ? ` (${cand.finishReason})` : '') + '. Próbáld újra.');
+      }
+      lastModel = model;
+      return text;
     }
-    if (!res.ok) {
-      let detail = '';
-      try { const j = await res.json(); detail = (j.error && j.error.message) || ''; } catch (e) { /* ignore */ }
-      if (res.status === 401) { const e = new Error('Érvénytelen API-kulcs. Ellenőrizd a beállításokban!'); e.code = 'NOKEY'; throw e; }
-      if (res.status === 429) throw new Error('Túl sok kérés vagy elfogyott a keret — várj egy kicsit, vagy nézd meg a fiókod egyenlegét.');
-      throw new Error(`Az AI hibát jelzett (${res.status}). ${detail}`);
-    }
-    const j = await res.json();
-    return (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+    throw lastErr || new Error('Egyik Gemini-modell sem érhető el most.');
   }
+  let lastModel = null;
 
   const show = s => String(s).replace(/\*/g, '·');
   function taskBlock(topic, p) {
@@ -124,7 +188,14 @@ Szabályok:
     const out = [];
     let list = null;
     const close = () => { if (list) { out.push(`</${list}>`); list = null; } };
-    for (const raw of String(text).split('\n')) {
+    // a Gemini néha LaTeX-szel válaszol — egyszerű, olvasható szöveggé alakítjuk
+    text = String(text)
+      .replace(/\$\$?([^$]+?)\$\$?/g, '$1')
+      .replace(/\\cdot/g, '·').replace(/\\times/g, '·').replace(/\\div/g, ':')
+      .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1)/($2)')
+      .replace(/\\left|\\right/g, '').replace(/\\[,;!]/g, ' ')
+      .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1$2');
+    for (const raw of text.split('\n')) {
       const line = raw.trimEnd();
       let mm;
       if (!line.trim()) { close(); continue; }
@@ -144,5 +215,5 @@ Szabályok:
     return out.join('');
   }
 
-  Alg.AI = { MODELS, getKey, setKey, getModel, setModel, hasKey, review, hint, explain, checkOwn, test, md };
+  Alg.AI = { AUTO, listModels, lastModelUsed: () => lastModel, getKey, setKey, getModel, setModel, hasKey, review, hint, explain, checkOwn, test, md };
 })(typeof window !== 'undefined' ? window : globalThis);
