@@ -24,18 +24,36 @@ import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.webkit.WebViewAssetLoader;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Algebra gyakorló — a webes gyakorló beágyazva egy WebView-ba.
- * A weboldal fájljai az APK-ban vannak (offline is működik), az AI-hoz kell internet.
+ *
+ * Frissítés APK nélkül: induláskor a gyakorló fájljait a weboldalról (GitHub Pages) tölti le,
+ * és elmenti őket. Ha nincs net, a legutóbb letöltött példányt, végső esetben az APK-ba
+ * beépítettet használja. A WebView „címe” mindig ugyanaz marad (appassets…), így a
+ * gyerek eredményei (localStorage) a frissítések után is megmaradnak.
  */
 public class MainActivity extends Activity {
     private static final String HOST = "appassets.androidplatform.net";
     private static final String START_URL = "https://" + HOST + "/assets/www/index.html";
     private static final int PICK_FILE = 1001;
+    private static final String PREFIX = "/assets/www/";
+    private static final String REMOTE = "https://irnik80-dotcom.github.io/algebra-gyakorlo/";
+
+    /** Az aktuális oldalbetöltésnél elérhető-e a weboldal (ha az index.html nem jött le, a többit sem próbáljuk). */
+    private volatile boolean onlineThisLoad = false;
 
     private WebView web;
     private ValueCallback<Uri[]> fileCallback;
@@ -76,7 +94,13 @@ public class MainActivity extends Activity {
         web.setWebViewClient(new WebViewClient() {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest req) {
-                return loader.shouldInterceptRequest(req.getUrl());
+                Uri u = req.getUrl();
+                if (HOST.equals(u.getHost()) && u.getPath() != null && u.getPath().startsWith(PREFIX)
+                        && "GET".equalsIgnoreCase(req.getMethod())) {
+                    WebResourceResponse r = fromWebOrCache(u, req.isForMainFrame());
+                    if (r != null) return r;
+                }
+                return loader.shouldInterceptRequest(u);
             }
 
             @Override
@@ -100,6 +124,79 @@ public class MainActivity extends Activity {
 
         if (savedInstanceState != null) web.restoreState(savedInstanceState);
         else web.loadUrl(START_URL);
+    }
+
+    // ---------- frissítés a weboldalról ----------
+    private static final Map<String, String> MIME = new HashMap<>();
+    static {
+        MIME.put("html", "text/html"); MIME.put("js", "application/javascript"); MIME.put("css", "text/css");
+        MIME.put("json", "application/json"); MIME.put("webmanifest", "application/manifest+json");
+        MIME.put("png", "image/png"); MIME.put("svg", "image/svg+xml");
+    }
+
+    private WebResourceResponse fromWebOrCache(Uri u, boolean mainFrame) {
+        String rel = u.getPath().substring(PREFIX.length());
+        if (rel.isEmpty()) rel = "index.html";
+        if (rel.contains("..")) return null;
+        int dot = rel.lastIndexOf('.');
+        String mime = MIME.get(dot >= 0 ? rel.substring(dot + 1) : "");
+        if (mime == null) return null;
+        File cached = new File(new File(getFilesDir(), "www"), rel);
+
+        boolean isIndex = rel.equals("index.html");
+        if (isIndex || mainFrame) onlineThisLoad = false;
+        if (isIndex || onlineThisLoad) {
+            byte[] body = download(REMOTE + rel + (u.getQuery() != null ? "?" + u.getQuery() : ""), isIndex ? 4000 : 8000);
+            if (body != null && body.length > 0) {
+                if (isIndex) onlineThisLoad = true;
+                save(cached, body);
+                return response(mime, new ByteArrayInputStream(body));
+            }
+        }
+        if (cached.isFile()) {
+            try { return response(mime, new FileInputStream(cached)); } catch (Exception ignored) { }
+        }
+        return null; // → az APK-ba beépített példány
+    }
+
+    private static byte[] download(String url, int timeoutMs) {
+        HttpURLConnection c = null;
+        try {
+            c = (HttpURLConnection) new URL(url).openConnection();
+            c.setConnectTimeout(timeoutMs);
+            c.setReadTimeout(timeoutMs);
+            c.setUseCaches(false);
+            c.setRequestProperty("Cache-Control", "no-cache");
+            if (c.getResponseCode() != 200) return null;
+            try (InputStream in = c.getInputStream(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                byte[] buf = new byte[16384];
+                int n;
+                while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                return out.toByteArray();
+            }
+        } catch (Exception e) {
+            return null;
+        } finally {
+            if (c != null) c.disconnect();
+        }
+    }
+
+    private static void save(File f, byte[] body) {
+        try {
+            File dir = f.getParentFile();
+            if (dir != null && !dir.exists()) dir.mkdirs();
+            File tmp = new File(f.getPath() + ".tmp");
+            try (FileOutputStream out = new FileOutputStream(tmp)) { out.write(body); }
+            if (!tmp.renameTo(f)) { f.delete(); tmp.renameTo(f); }
+        } catch (Exception ignored) { }
+    }
+
+    private static WebResourceResponse response(String mime, InputStream in) {
+        WebResourceResponse r = new WebResourceResponse(mime, "UTF-8", in);
+        Map<String, String> h = new HashMap<>();
+        h.put("Cache-Control", "no-store");
+        r.setResponseHeaders(h);
+        return r;
     }
 
     /** Galéria / fájl + kamera választó a „Fotó a füzetről” gombhoz. */
@@ -176,5 +273,5 @@ public class MainActivity extends Activity {
     protected void onResume() { super.onResume(); web.onResume(); }
 
     /** Verziószám a user-agenthez (a weboldal így tudja, hogy appban fut). */
-    static final class BuildConfigVersion { static final String NAME = "1.1"; }
+    static final class BuildConfigVersion { static final String NAME = "1.2"; }
 }

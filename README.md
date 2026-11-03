@@ -69,7 +69,7 @@ Saját ikonnal, teljes képernyőn fut, és internet nélkül is működik (csak
 Letöltés telefonon: **<https://irnik80-dotcom.github.io/algebra-gyakorlo/apk/algebra-gyakorlo.apk>**
 (Telepítéskor engedélyezni kell az „ismeretlen forrásból származó alkalmazások” telepítését a böngészőnek.)
 
-Az app ugyanazt a gyakorlót tartalmazza, beépítve: internet nélkül is működik, csak az AI-hoz kell net.
+Az app ugyanazt a gyakorlót tartalmazza. Induláskor a weboldalról tölti le a legfrissebb változatot (így új funkciókhoz **nem kell új APK**), net nélkül a legutóbb letöltött, végső esetben a beépített változattal indul. Az AI-hoz kell net. Új APK csak akkor kell, ha magán az Android-kereten változtatunk.
 A forrás az `android/` mappában van (WebView + a repó `index.html`, `css/`, `js/` fájljai, építéskor bemásolva).
 
 Építés: `cd android && gradle assembleRelease` (Android SDK 35 kell; az aláíráshoz `android/keystore.properties`, ami nincs a repóban).
