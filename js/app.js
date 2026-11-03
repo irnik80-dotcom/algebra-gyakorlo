@@ -163,7 +163,7 @@
     setFeedback('info', `<strong>A helyes eredmény:</strong>${mathSpan(state.problem.answer)}` +
       '<div class="actions"><button class="btn ai" id="explainBtn">✦ Lépésenkénti levezetés</button>' +
       '<button class="btn" id="nextBtn2">Új feladat ↻</button></div>');
-    $('#explainBtn').addEventListener('click', () => runAi('Levezetés', () => AI.explain(topic(), state.problem)));
+    $('#explainBtn').addEventListener('click', () => runAi('Levezetés', st => AI.explain(topic(), state.problem, st)));
     $('#nextBtn2').addEventListener('click', newProblem);
     updateProgress();
   }
@@ -173,16 +173,19 @@
   async function runAi(title, fn, box = $('#aiBox'), btns = ['#aiCheckBtn', '#hintBtn']) {
     if (!AI.hasKey()) { openSettings('Az AI-funkciókhoz először add meg az API-kulcsot.'); return; }
     box.hidden = false; box.classList.remove('error');
-    box.innerHTML = `<h4>✦ ${esc(title)}</h4><span class="loading"><i></i><i></i><i></i> gondolkodom…</span>`;
+    box.innerHTML = `<h4>✦ ${esc(title)}</h4><span class="loading"><i></i><i></i><i></i> <span class="ld-text">gondolkodom…</span></span>`;
     btns.forEach(s => { const b = $(s); if (b) b.disabled = true; });
+    const status = msg => { const t = box.querySelector('.ld-text'); if (t) t.textContent = msg; };
+    const slow = setTimeout(() => status('még gondolkodom… (a Google szerverei most lassabbak)'), 8000);
     try {
-      const text = await fn();
+      const text = await fn(status);
       box.innerHTML = `<h4>✦ ${esc(title)}</h4>` + AI.md(text || '(üres válasz)');
     } catch (e) {
       box.classList.add('error');
       box.innerHTML = `<h4>Hiba</h4><p>${esc(e.message)}</p>`;
       if (e.code === 'NOKEY') openSettings(e.message);
     } finally {
+      clearTimeout(slow);
       btns.forEach(s => { const b = $(s); if (b) b.disabled = false; });
     }
   }
@@ -205,7 +208,7 @@
     }
     const verdict = verdictText();
     if (!state.revealed && !state.done && state.last === null) setFeedback('', '');
-    runAi('AI ellenőrzés', () => AI.review(topic(), state.problem, ans, work, verdict));
+    runAi('AI ellenőrzés', st => AI.review(topic(), state.problem, ans, work, verdict, st));
   }
 
   // ---------- gyorsgombok ----------
@@ -336,7 +339,7 @@
         out.innerHTML = '<p>Írd be a feladatot és a megoldásodat, vagy tölts fel egy fotót!</p>';
         return;
       }
-      runAi('AI ellenőrzés', () => AI.checkOwn(task, sol, ownImage, $('#ownFull').checked), out, ['#ownBtn']);
+      runAi('AI ellenőrzés', st => AI.checkOwn(task, sol, ownImage, $('#ownFull').checked, st), out, ['#ownBtn']);
     });
   }
 
@@ -384,7 +387,7 @@
         return;
       }
       if (!state.revealed && !state.done) setFeedback('', '');
-      runAi('Tipp', () => AI.hint(topic(), state.problem, $('#work').value));
+      runAi('Tipp', st => AI.hint(topic(), state.problem, $('#work').value, st));
     });
     selectTopic(state.topic);
     keyFromLink();

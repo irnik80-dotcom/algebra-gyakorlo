@@ -8,7 +8,7 @@
   const API = 'https://generativelanguage.googleapis.com/v1beta';
   const AUTO = 'auto';
   // Ha a modellista nem kérdezhető le, ezekkel próbálkozunk sorban.
-  const FALLBACK = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-flash-lite-latest', 'gemini-2.5-flash-lite'];
+  const FALLBACK = ['gemini-flash-latest', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-flash-lite-latest', 'gemini-3.5-flash-lite'];
 
   const ls = {
     get(k) { try { return localStorage.getItem('algebra.' + k); } catch (e) { return null; } },
@@ -59,21 +59,38 @@ Szabályok:
     }
     return available;
   }
+  // ---------- modellek „egészsége”: jegyezzük, melyik működött / melyik volt túlterhelt ----------
+  const health = (() => { try { return JSON.parse(ls.get('modelHealth') || '{}'); } catch (e) { return {}; } })();
+  const saveHealth = () => ls.set('modelHealth', JSON.stringify(health));
+  const coolingDown = id => health[id] && health[id].until && health[id].until > Date.now();
+  function markBad(id, ms) { health[id] = { ...(health[id] || {}), until: Date.now() + ms }; saveHealth(); }
+  function markGood(id) { health[id] = { ok: Date.now() }; ls.set('goodModel', id); saveHealth(); }
+
   async function candidates() {
     const chosen = getModel();
     const list = (await listModels()).map(m => m.id).filter(id => !/pro/.test(id) || chosen === id);
-    const order = chosen !== AUTO ? [chosen, ...list.filter(id => id !== chosen)] : list;
+    const good = ls.get('goodModel');
+    let order = list.slice();
+    // ami legutóbb működött, azzal kezdünk
+    if (good && order.includes(good)) order = [good, ...order.filter(id => id !== good)];
+    if (chosen !== AUTO) order = [chosen, ...order.filter(id => id !== chosen)];
+    // ami nemrég túlterhelt / kimerült volt, a sor végére kerül
+    order = [...order.filter(id => !coolingDown(id)), ...order.filter(coolingDown)];
     return order.slice(0, 6);
   }
 
   function errorFor(status, detail) {
     if (status === 400 && /api key|API_KEY/i.test(detail)) { const e = new Error('Érvénytelen API-kulcs. Ellenőrizd a beállításokban!'); e.code = 'NOKEY'; return e; }
     if (status === 401 || status === 403) { const e = new Error('A kulcs nem érvényes, vagy nincs engedélyezve a Gemini API. Ellenőrizd a beállításokban!'); e.code = 'NOKEY'; return e; }
-    if (status === 429) return new Error('Elfogyott az ingyenes keret (percenkénti vagy napi limit). Várj egy percet, vagy próbáld holnap — a napi keret éjfél (amerikai idő), azaz kb. reggel 9 körül újraindul.');
+    if (status === 429) return new Error('Elfogyott az ingyenes keret (percenkénti vagy napi limit). Várj egy percet, vagy próbáld holnap — a napi keret kb. reggel 9 körül újraindul.');
+    if (status === 503) return new Error('A Google AI-szerverei most túlterheltek. Próbáld újra pár perc múlva.');
     return new Error(`Az AI hibát jelzett (${status}). ${detail}`);
   }
 
-  async function call(messages, maxTokens = 900, system = SYSTEM) {
+  const PER_TRY_MS = 15000;   // egy modellre legfeljebb ennyit várunk
+  const TOTAL_MS = 50000;     // összesen legfeljebb ennyit
+
+  async function call(messages, maxTokens = 900, system = SYSTEM, onStatus) {
     const key = getKey();
     if (!key) { const e = new Error('Nincs beállítva API-kulcs.'); e.code = 'NOKEY'; throw e; }
     const contents = messages.map(m => {
@@ -81,52 +98,66 @@ Szabályok:
         p.type === 'image' ? { inline_data: { mime_type: p.source.media_type, data: p.source.data } } : { text: p.text });
       return { role: m.role === 'assistant' ? 'model' : 'user', parts };
     });
-    const body = JSON.stringify({
+    const makeBody = (model, thinking) => JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
       contents,
-      // a "gondolkodó" modelleknél a gondolkodás is ebből a keretből fogy, ezért bőkezű
-      generationConfig: { maxOutputTokens: Math.max(4096, maxTokens * 4), temperature: 0.4 },
+      generationConfig: {
+        // a "gondolkodó" modelleknél a gondolkodás is ebből a keretből fogy, ezért bőkezű
+        maxOutputTokens: Math.max(4096, maxTokens * 4), temperature: 0.4,
+        // kevés gondolkodás = gyorsabb válasz (a 3-as generációtól támogatott)
+        ...(thinking && /^gemini-[3-9]/.test(model) ? { thinkingConfig: { thinkingLevel: 'low' } } : {}),
+      },
     });
-    let lastErr = null;
+    const t0 = Date.now();
+    let lastErr = null, tries = 0;
     for (const model of await candidates()) {
-      let res;
-      const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-      const timer = ctl && setTimeout(() => ctl.abort(), 60000);
-      try {
-        res = await fetch(`${API}/models/${encodeURIComponent(model)}:generateContent`, {
-          method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': key }, body,
-          signal: ctl ? ctl.signal : undefined,
-        });
-      } catch (e) {
-        if (e && e.name === 'AbortError') { lastErr = new Error('Az AI most nagyon lassan válaszol. Próbáld újra egy kicsit később.'); continue; }
-        throw new Error('Nem sikerült elérni az AI-t (nincs internet, vagy a hálózat blokkolja).');
-      } finally {
+      const left = TOTAL_MS - (Date.now() - t0);
+      if (left < 3000) break;
+      if (tries++ > 0 && onStatus) onStatus('Ez a modell most foglalt, másikat próbálok…');
+      for (const thinking of [true, false]) {
+        let res;
+        const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const timer = ctl && setTimeout(() => ctl.abort(), Math.min(PER_TRY_MS, left));
+        try {
+          res = await fetch(`${API}/models/${encodeURIComponent(model)}:generateContent`, {
+            method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
+            body: makeBody(model, thinking), signal: ctl ? ctl.signal : undefined,
+          });
+        } catch (e) {
+          if (timer) clearTimeout(timer);
+          if (e && e.name === 'AbortError') { markBad(model, 10 * 60e3); lastErr = new Error('Az AI most nagyon lassan válaszol. Próbáld újra egy kicsit később.'); break; }
+          throw new Error('Nem sikerült elérni az AI-t (nincs internet, vagy a hálózat blokkolja).');
+        }
         if (timer) clearTimeout(timer);
+        if (!res.ok) {
+          let detail = '';
+          try { const j = await res.json(); detail = (j.error && j.error.message) || ''; } catch (e) { /* ignore */ }
+          // ha a gondolkodás-beállítást nem ismeri, próbáljuk nélküle
+          if (res.status === 400 && thinking && /thinking/i.test(detail)) continue;
+          lastErr = errorFor(res.status, detail);
+          if (lastErr.code === 'NOKEY') throw lastErr;
+          if (res.status === 404) { markBad(model, 7 * 24 * 3600e3); break; }
+          if (res.status === 429) { markBad(model, /per day|daily|PerDay/i.test(detail) ? 6 * 3600e3 : 2 * 60e3); break; }
+          if (res.status >= 500) { markBad(model, 10 * 60e3); break; }
+          throw lastErr;
+        }
+        const j = await res.json();
+        const cand = (j.candidates || [])[0];
+        if (!cand) {
+          const why = j.promptFeedback && j.promptFeedback.blockReason;
+          throw new Error('Az AI nem válaszolt' + (why ? ` (${why}).` : '.'));
+        }
+        const text = ((cand.content && cand.content.parts) || []).filter(p => p.text && !p.thought).map(p => p.text).join('').trim();
+        if (!text) {
+          if (cand.finishReason === 'MAX_TOKENS') { lastErr = new Error('Az AI válasza túl hosszú lett, próbáld újra.'); break; }
+          throw new Error('Az AI üres választ adott' + (cand.finishReason ? ` (${cand.finishReason})` : '') + '. Próbáld újra.');
+        }
+        lastModel = model;
+        markGood(model);
+        return text;
       }
-      if (!res.ok) {
-        let detail = '';
-        try { const j = await res.json(); detail = (j.error && j.error.message) || ''; } catch (e) { /* ignore */ }
-        lastErr = errorFor(res.status, detail);
-        if (lastErr.code === 'NOKEY') throw lastErr;
-        // túlterhelt / elfogyott keret / nem létező modell → próbáljuk a következőt
-        if ([404, 429, 500, 503].includes(res.status)) continue;
-        throw lastErr;
-      }
-      const j = await res.json();
-      const cand = (j.candidates || [])[0];
-      if (!cand) {
-        const why = j.promptFeedback && j.promptFeedback.blockReason;
-        throw new Error('Az AI nem válaszolt' + (why ? ` (${why}).` : '.'));
-      }
-      const text = ((cand.content && cand.content.parts) || []).filter(p => p.text && !p.thought).map(p => p.text).join('').trim();
-      if (!text) {
-        if (cand.finishReason === 'MAX_TOKENS') { lastErr = new Error('Az AI válasza túl hosszú lett, próbáld újra.'); continue; }
-        throw new Error('Az AI üres választ adott' + (cand.finishReason ? ` (${cand.finishReason})` : '') + '. Próbáld újra.');
-      }
-      lastModel = model;
-      return text;
     }
-    throw lastErr || new Error('Egyik Gemini-modell sem érhető el most.');
+    throw lastErr || new Error('Egyik Gemini-modell sem érhető el most. Próbáld újra pár perc múlva.');
   }
   let lastModel = null;
 
@@ -137,29 +168,29 @@ Szabályok:
     return s;
   }
 
-  function review(topic, p, answer, work, verdict) {
+  function review(topic, p, answer, work, verdict, onStatus) {
     const msg = taskBlock(topic, p) +
       `\nA diák levezetése:\n${work && work.trim() ? work.trim() : '(nem írt levezetést)'}\n` +
       `\nA diák végeredménye: ${answer && answer.trim() ? answer.trim() : '(nem adott meg végeredményt)'}\n` +
       `Az automatikus ellenőrzés szerint: ${verdict}\n\n` +
       'Értékeld a diák munkáját a szabályaid szerint. Ha van levezetés, nézd át lépésenként, és mondd meg, hol csúszott hiba (ha csúszott).';
-    return call([{ role: 'user', content: msg }]);
+    return call([{ role: 'user', content: msg }], 900, SYSTEM, onStatus);
   }
 
-  function hint(topic, p, work) {
+  function hint(topic, p, work, onStatus) {
     const msg = taskBlock(topic, p) +
       (work && work.trim() ? `\nA diák eddigi munkája:\n${work.trim()}\n` : '\nA diák még nem kezdett bele.\n') +
       '\nA diák elakadt. Adj EGYETLEN rövid tippet a következő lépéshez (max. 2-3 mondat). A végeredményt ne áruld el!';
-    return call([{ role: 'user', content: msg }], 400);
+    return call([{ role: 'user', content: msg }], 400, SYSTEM, onStatus);
   }
 
-  function explain(topic, p) {
+  function explain(topic, p, onStatus) {
     const msg = taskBlock(topic, p).replace(' (a diák ezt nem látja — ne áruld el egyből, ha hibázott)', '') +
       '\nMutasd be a teljes megoldást számozott lépésekben. Minden lépésnél írd le röviden, melyik szabályt használjuk és miért. A végén emeld ki a végeredményt. Itt hosszabb lehetsz, de maradj tömör.';
-    return call([{ role: 'user', content: msg }], 1400);
+    return call([{ role: 'user', content: msg }], 1400, SYSTEM, onStatus);
   }
 
-  function checkOwn(task, solution, imageDataUrl, wantFull) {
+  function checkOwn(task, solution, imageDataUrl, wantFull, onStatus) {
     const content = [];
     if (imageDataUrl) {
       const [head, data] = imageDataUrl.split(',');
@@ -177,7 +208,7 @@ Szabályok:
           ? 'Értékeld a megoldást, mutasd meg a hibákat, majd add meg a teljes, lépésenkénti helyes megoldást is.'
           : 'Értékeld a megoldást a szabályaid szerint: ha hibás, az első hibát nevezd meg és adj tippet, de a teljes megoldást ne add meg.'),
     });
-    return call([{ role: 'user', content }], wantFull ? 1600 : 900);
+    return call([{ role: 'user', content }], wantFull ? 1600 : 900, SYSTEM, onStatus);
   }
 
   function test() {
