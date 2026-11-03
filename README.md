@@ -61,6 +61,10 @@ Helyben is kipróbálható: elég duplán kattintani az `index.html`-re.
 
 ## Az AI beállítása (ingyenes)
 
+Az oldalba **be van építve egy közös Gemini-kulcs**, ezért az AI beállítás nélkül, minden eszközön azonnal működik. Ha a közös keret elfogy, vagy saját kulcsot szeretnél, add meg a beállításokban — az felülírja a beépítettet.
+
+Saját kulcs:
+
 1. Nyisd meg: <https://aistudio.google.com/apikey> (Google-fiókkal lépj be).
 2. **Create API key** → másold ki a kulcsot (`AIza…`). Bankkártya nem kell.
 3. Az oldalon jobb fent: **AI beállítása** → kulcs beillesztése → **Kapcsolat tesztelése** → **Mentés**.

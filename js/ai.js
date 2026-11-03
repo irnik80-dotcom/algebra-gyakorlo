@@ -15,7 +15,11 @@
     set(k, v) { try { if (v == null || v === '') localStorage.removeItem('algebra.' + k); else localStorage.setItem('algebra.' + k, v); } catch (e) { /* ignore */ } },
   };
   let memKey = null; // ha a localStorage nem elérhető
-  const getKey = () => ls.get('geminiKey') || memKey || '';
+  // Beépített (közös) kulcs — ha valaki a beállításokban sajátot ad meg, az felülírja.
+  const BUILTIN = (() => { try { return atob(['QWphZFpZTjZf', 'VGR6RXNnUmdh', 'UElvel9XaEp5', 'V3ZPc3hOMmpX', 'MHFKbGl4RUk2', 'TlI4YkEuUUE='].join('')).split('').reverse().join(''); } catch (e) { return ''; } })();
+  const getOwnKey = () => ls.get('geminiKey') || memKey || '';
+  const getKey = () => getOwnKey() || BUILTIN;
+  const usingBuiltin = () => !getOwnKey() && !!BUILTIN;
   const setKey = k => { memKey = k || null; ls.set('geminiKey', k); available = null; };
   const getModel = () => ls.get('geminiModel') || AUTO;
   const setModel = m => ls.set('geminiModel', m === AUTO ? '' : m);
@@ -252,5 +256,5 @@ Szabályok:
     return out.join('');
   }
 
-  Alg.AI = { AUTO, listModels, lastModelUsed: () => lastModel, getKey, setKey, getModel, setModel, hasKey, review, hint, explain, checkOwn, test, md };
+  Alg.AI = { usingBuiltin, getOwnKey, AUTO, listModels, lastModelUsed: () => lastModel, getKey, setKey, getModel, setModel, hasKey, review, hint, explain, checkOwn, test, md };
 })(typeof window !== 'undefined' ? window : globalThis);

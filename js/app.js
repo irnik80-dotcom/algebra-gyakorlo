@@ -239,6 +239,7 @@
     const on = AI.hasKey();
     $('#settingsBtn').classList.toggle('on', on);
     $('#aiStatusText').textContent = on ? 'AI bekapcsolva' : 'AI beállítása';
+    $('#settingsBtn').title = AI.usingBuiltin() ? 'AI: a beépített kulcs van használatban' : 'AI beállítások';
   }
   function fillModels(list) {
     const sel = $('#model'), cur = AI.getModel();
@@ -250,7 +251,8 @@
     sel.value = cur;
   }
   function openSettings(msg) {
-    $('#apiKey').value = AI.getKey();
+    $('#apiKey').value = AI.getOwnKey();
+    $('#apiKey').placeholder = AI.usingBuiltin() ? 'Beépített kulcs van használatban — ide csak sajátot írj, ha kell' : 'AIza…';
     fillModels([]);
     if (AI.hasKey()) AI.listModels().then(fillModels).catch(() => {});
     const m = $('#settingsMsg');
@@ -274,7 +276,7 @@
     });
     $('#clearKey').addEventListener('click', () => {
       AI.setKey(''); $('#apiKey').value = ''; refreshAiStatus();
-      const m = $('#settingsMsg'); m.className = 'feedback info'; m.textContent = 'A kulcs törölve ebből a böngészőből.';
+      const m = $('#settingsMsg'); m.className = 'feedback info'; m.textContent = 'A saját kulcs törölve ebből a böngészőből' + (AI.usingBuiltin() ? ' — mostantól a beépített kulcs működik.' : '.');
     });
     $('#testKey').addEventListener('click', async () => {
       const m = $('#settingsMsg');
@@ -363,7 +365,7 @@
     setTimeout(() => setFeedback('ok', '<strong>✔ Az AI be van állítva ezen az eszközön.</strong>Mostantól az AI-gombok itt mindig működnek.'), 0);
   }
   function setupLink() {
-    const key = $('#apiKey').value.trim() || AI.getKey();
+    const key = $('#apiKey').value.trim() || AI.getOwnKey();
     return key ? location.origin + location.pathname + '#kulcs=' + encodeURIComponent(key) : '';
   }
 
