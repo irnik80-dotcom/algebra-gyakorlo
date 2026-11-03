@@ -9,7 +9,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20261103e">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#243a8f">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/style.css?v=20261103f">
 </head>
 <body>
   <header class="top">
@@ -156,15 +159,16 @@
   </dialog>
 
   <footer>
-    <a id="apkLink" class="apk-link" href="apk/algebra-gyakorlo.apk" download>📱 Android-app letöltése (APK)</a><br>
-    A feladatokat a program véletlenszerűen generálja és saját maga ellenőrzi. Az AI-ellenőrzés a Google Gemini ingyenes API-jával működik. · v20261103e
+    <button id="installBtn" class="apk-link" hidden>📲 Telepítés a kezdőképernyőre</button>
+    <a id="apkLink" class="apk-link" href="apk/algebra-gyakorlo.apk" download>📱 Android-app (APK)</a><br>
+    A feladatokat a program véletlenszerűen generálja és saját maga ellenőrzi. Az AI-ellenőrzés a Google Gemini ingyenes API-jával működik. · v20261103f
   </footer>
 
-  <script src="js/parser.js?v=20261103e"></script>
-  <script src="js/poly.js?v=20261103e"></script>
-  <script src="js/generators.js?v=20261103e"></script>
-  <script src="js/checker.js?v=20261103e"></script>
-  <script src="js/ai.js?v=20261103e"></script>
-  <script src="js/app.js?v=20261103e"></script>
+  <script src="js/parser.js?v=20261103f"></script>
+  <script src="js/poly.js?v=20261103f"></script>
+  <script src="js/generators.js?v=20261103f"></script>
+  <script src="js/checker.js?v=20261103f"></script>
+  <script src="js/ai.js?v=20261103f"></script>
+  <script src="js/app.js?v=20261103f"></script>
 </body>
 </html>

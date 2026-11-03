@@ -369,9 +369,33 @@
     return key ? location.origin + location.pathname + '#kulcs=' + encodeURIComponent(key) : '';
   }
 
+  // ---------- telepíthető webapp (PWA) ----------
+  function setupInstall(inApp) {
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+    if (standalone) document.documentElement.classList.add('in-app');
+    if (!inApp && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === '127.0.0.1' || location.hostname === 'localhost')) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+    const btn = document.getElementById('installBtn');
+    let deferred = null;
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault(); deferred = e;
+      btn.hidden = false;
+    });
+    btn.addEventListener('click', async () => {
+      if (!deferred) return;
+      deferred.prompt();
+      try { await deferred.userChoice; } catch (e) { /* ignore */ }
+      deferred = null; btn.hidden = true;
+    });
+    window.addEventListener('appinstalled', () => { btn.hidden = true; });
+  }
+
   // ---------- indítás ----------
   function init() {
-    if (/AlgebraGyakorloApp\//.test(navigator.userAgent)) document.documentElement.classList.add('in-app');
+    const inApp = /AlgebraGyakorloApp\//.test(navigator.userAgent);
+    if (inApp) document.documentElement.classList.add('in-app');
+    setupInstall(inApp);
     if (window.matchMedia('(max-width: 860px)').matches) $('#answer').placeholder = 'Végeredmény…';
     buildTopics(); buildKeys(); buildSettings(); buildOwn(); refreshAiStatus();
     $$('.levels button').forEach(b => b.addEventListener('click', () => setLevel(+b.dataset.level)));

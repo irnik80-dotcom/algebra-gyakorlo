@@ -59,6 +59,11 @@ Helyben is kipróbálható: elég duplán kattintani az `index.html`-re.
 
 **Élő változat:** <https://irnik80-dotcom.github.io/algebra-gyakorlo/>
 
+## Telepítés a telefonra (ajánlott, Family Linkkel is működik)
+
+Nyisd meg az oldalt **Chrome-ban** → az oldal alján **📲 Telepítés a kezdőképernyőre** (vagy a Chrome ⋮ menüjében **Alkalmazás telepítése / Hozzáadás a kezdőképernyőhöz**).
+Saját ikonnal, teljes képernyőn fut, és internet nélkül is működik (csak az AI-hoz kell net). Nem kell hozzá „ismeretlen forrás” engedély.
+
 ## Android-app
 
 Letöltés telefonon: **<https://irnik80-dotcom.github.io/algebra-gyakorlo/apk/algebra-gyakorlo.apk>**
