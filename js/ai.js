@@ -51,7 +51,7 @@ Szabályok:
         .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
         .map(m => ({ id: m.name.replace(/^models\//, ''), label: m.displayName || m.name }))
         .filter(m => /^gemini-/.test(m.id) && /flash|pro/.test(m.id)
-          && !/tts|audio|live|image|embed|robotics|computer|thinking-exp|transcrib|translat/.test(m.id))
+          && !/omni|tts|audio|live|image|embed|robotics|computer|thinking-exp|transcrib|translat/.test(m.id))
         .sort((a, b) => rank(b.id) - rank(a.id));
       if (!available.length) available = FALLBACK.map(id => ({ id, label: id }));
     } catch (e) {
@@ -63,7 +63,7 @@ Szabályok:
     const chosen = getModel();
     const list = (await listModels()).map(m => m.id).filter(id => !/pro/.test(id) || chosen === id);
     const order = chosen !== AUTO ? [chosen, ...list.filter(id => id !== chosen)] : list;
-    return order.slice(0, 4);
+    return order.slice(0, 6);
   }
 
   function errorFor(status, detail) {
@@ -90,12 +90,18 @@ Szabályok:
     let lastErr = null;
     for (const model of await candidates()) {
       let res;
+      const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = ctl && setTimeout(() => ctl.abort(), 60000);
       try {
         res = await fetch(`${API}/models/${encodeURIComponent(model)}:generateContent`, {
           method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': key }, body,
+          signal: ctl ? ctl.signal : undefined,
         });
       } catch (e) {
+        if (e && e.name === 'AbortError') { lastErr = new Error('Az AI most nagyon lassan válaszol. Próbáld újra egy kicsit később.'); continue; }
         throw new Error('Nem sikerült elérni az AI-t (nincs internet, vagy a hálózat blokkolja).');
+      } finally {
+        if (timer) clearTimeout(timer);
       }
       if (!res.ok) {
         let detail = '';

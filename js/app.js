@@ -252,6 +252,12 @@
       AI.setKey($('#apiKey').value.trim()); AI.setModel($('#model').value);
       refreshAiStatus(); closeSettings();
     });
+    $('#copyLink').addEventListener('click', async () => {
+      const m = $('#settingsMsg'), link = setupLink();
+      if (!link) { m.className = 'feedback warn'; m.textContent = 'Előbb add meg a kulcsot.'; return; }
+      try { await navigator.clipboard.writeText(link); m.className = 'feedback ok'; m.textContent = '✔ Beállító link kimásolva. Küldd el magadnak/a gyereknek, és nyisd meg egyszer azon az eszközön.'; }
+      catch (e) { m.className = 'feedback info'; m.innerHTML = 'Másold ki ezt a linket:<br><code style="word-break:break-all">' + esc(link) + '</code>'; }
+    });
     $('#clearKey').addEventListener('click', () => {
       AI.setKey(''); $('#apiKey').value = ''; refreshAiStatus();
       const m = $('#settingsMsg'); m.className = 'feedback info'; m.textContent = 'A kulcs törölve ebből a böngészőből.';
@@ -330,6 +336,23 @@
     $('#view-own').hidden = v !== 'own';
   }
 
+  // ---------- beállító link: …/#kulcs=AIza… ----------
+  // A kulcs így nem kerül be a repóba; a linket egyszer megnyitva az eszköz megjegyzi.
+  function keyFromLink() {
+    const m = location.hash.match(/(?:^#|&)(?:kulcs|key|gemini)=([^&]+)/);
+    if (!m) return;
+    const key = decodeURIComponent(m[1]).trim();
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { location.hash = ''; }
+    if (key.length < 20) return;
+    AI.setKey(key);
+    refreshAiStatus();
+    setTimeout(() => setFeedback('ok', '<strong>✔ Az AI be van állítva ezen az eszközön.</strong>Mostantól az AI-gombok itt mindig működnek.'), 0);
+  }
+  function setupLink() {
+    const key = $('#apiKey').value.trim() || AI.getKey();
+    return key ? location.origin + location.pathname + '#kulcs=' + encodeURIComponent(key) : '';
+  }
+
   // ---------- indítás ----------
   function init() {
     buildTopics(); buildKeys(); buildSettings(); buildOwn(); refreshAiStatus();
@@ -352,6 +375,7 @@
       runAi('Tipp', () => AI.hint(topic(), state.problem, $('#work').value));
     });
     selectTopic(state.topic);
+    keyFromLink();
   }
   init();
 })();

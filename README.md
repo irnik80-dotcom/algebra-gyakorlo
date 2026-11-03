@@ -65,6 +65,8 @@ Helyben is kipróbálható: elég duplán kattintani az `index.html`-re.
 2. **Create API key** → másold ki a kulcsot (`AIza…`). Bankkártya nem kell.
 3. Az oldalon jobb fent: **AI beállítása** → kulcs beillesztése → **Kapcsolat tesztelése** → **Mentés**.
 
+**Több eszközre egyszerűbben:** a beállításokban a **🔗 Beállító link** gomb ad egy `…/algebra-gyakorlo/#kulcs=…` linket. Ezt egyszer megnyitva az adott eszköz megjegyzi a kulcsot (a link a címsorból azonnal eltűnik). A kulcs így sem kerül bele a repóba. Ezt a linket ne tedd közzé.
+
 A modell alapból **Automatikus**: az oldal lekérdezi, mely Gemini Flash modellek érhetők el a kulccsal, és a legújabbat használja. Ha annak elfogyott a percenkénti vagy napi ingyenes kerete, magától átvált a következőre. A beállításokban kézzel is választhatsz modellt.
 
 **Biztonság és költség:**
