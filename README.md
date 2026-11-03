@@ -57,6 +57,8 @@ git push -u origin main
 
 Helyben is kipróbálható: elég duplán kattintani az `index.html`-re.
 
+**Élő változat:** <https://irnik80-dotcom.github.io/algebra-gyakorlo/>
+
 ## Az AI beállítása
 
 1. Hozz létre API-kulcsot: <https://console.anthropic.com/settings/keys> (egyenleg feltöltése szükséges).
