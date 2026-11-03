@@ -88,7 +88,9 @@
     state.problem = topic().gen(state.level);
     state.count++; state.tries = 0; state.done = false; state.revealed = false; state.last = null;
     $('#problemNo').textContent = `${state.count}. feladat · ${['', 'könnyű', 'közepes', 'nehéz'][state.level]}`;
-    $('#prompt').textContent = state.problem.prompt;
+    // a „betű = érték” részeket vastagon kiemeljük: „ha x = −1 és y = −3”
+    $('#prompt').innerHTML = esc(state.problem.prompt)
+      .replace(/\b([a-z]) = ([−-]?\d+(?:[.,]\d+)?)/g, '<b class="cond"><var>$1</var>&nbsp;=&nbsp;$2</b>');
     $('#expr').innerHTML = R(state.problem.expr);
     $('#answer').value = '';
     $('#work').value = '';
@@ -98,8 +100,17 @@
     $('#checkBtn').textContent = 'Ellenőrzés';
     updateProgress();
     if (window.matchMedia('(min-width: 861px)').matches) $('#answer').focus({ preventScroll: true });
+    else fitProblem();
   }
 
+  // mobilon: ha a feladat alja (a gombokkal) nem látszik, annyit görgetünk, hogy egészében látsszon
+  function fitProblem() {
+    requestAnimationFrame(() => {
+      const card = $('.problem').getBoundingClientRect(), act = $('.problem .actions').getBoundingClientRect();
+      const over = act.bottom + 8 - window.innerHeight;
+      if (over > 0) window.scrollBy({ top: Math.min(over, card.top - 4), behavior: 'smooth' });
+    });
+  }
   function updatePreview() {
     const v = $('#answer').value.trim();
     if (!v) { $('#preview').innerHTML = ''; return; }
@@ -200,7 +211,7 @@
   // ---------- gyorsgombok ----------
   const KEYS = [
     { l: '<i>x</i>', t: 'x' }, { l: '<i>y</i>', t: 'y' }, { l: '□²', t: '^2' }, { l: '□³', t: '^3' }, { l: '^', t: '^' },
-    { l: '( )', t: '()', back: 1 }, { l: '(', t: '(' }, { l: ')', t: ')' }, { l: '·', t: '*' }, { l: '−', t: '-' }, { l: '/', t: '/' },
+    { l: '( )', t: '()', back: 1 }, { l: '(', t: '(' }, { l: ')', t: ')' }, { l: '+', t: '+' }, { l: '−', t: '-' }, { l: '·', t: '*' }, { l: '/', t: '/' },
   ];
   function buildKeys() {
     const box = $('#keys');
@@ -355,6 +366,7 @@
 
   // ---------- indítás ----------
   function init() {
+    if (window.matchMedia('(max-width: 860px)').matches) $('#answer').placeholder = 'Végeredmény…';
     buildTopics(); buildKeys(); buildSettings(); buildOwn(); refreshAiStatus();
     $$('.levels button').forEach(b => b.addEventListener('click', () => setLevel(+b.dataset.level)));
     $$('.levels button').forEach(b => b.classList.toggle('active', +b.dataset.level === state.level));

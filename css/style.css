@@ -121,7 +121,9 @@ code { font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; backgrou
 .badge { font-size: .75rem; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
 .link-btn { border: 0; background: none; color: var(--accent); cursor: pointer; font-size: .88rem; padding: 4px 2px; }
 .link-btn:hover { text-decoration: underline; }
-.prompt { font-size: 1.02rem; margin: 6px 0 10px; }
+.prompt { font-size: 1.3rem; line-height: 1.45; margin: 8px 0 6px; font-weight: 500; }
+.prompt .cond { font-family: var(--mathf); font-size: 1.12em; font-weight: 700; color: var(--accent); white-space: nowrap; }
+.prompt .cond var { font-style: italic; }
 .expr {
   font-size: clamp(1.5rem, 4vw, 2.1rem); padding: 18px 8px 22px; text-align: center; overflow-x: auto;
   border-bottom: 1px dashed var(--line); margin-bottom: 18px;
@@ -131,13 +133,13 @@ code { font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; backgrou
 .answer, textarea, .settings input, .settings select, .mobile-topic select {
   width: 100%; border: 1.5px solid var(--line); background: var(--bg); border-radius: 10px; padding: 12px 14px;
 }
-.answer { font-family: var(--mathf); font-size: 1.35rem; }
+.answer { font-family: var(--mathf); font-size: 1.8rem; padding: 14px 18px; min-height: 66px; }
 .answer:focus, textarea:focus, .settings input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 textarea { resize: vertical; font-family: var(--mathf); font-size: 1.05rem; }
 
 .keys { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .keys button {
-  min-width: 40px; height: 36px; padding: 0 10px; border: 1px solid var(--line); background: var(--card); border-radius: 8px;
+  min-width: 44px; height: 40px; padding: 0 10px; border: 1px solid var(--line); background: var(--card); border-radius: 8px;
   cursor: pointer; font-family: var(--mathf); font-size: 1.05rem;
 }
 .keys button:hover { border-color: var(--accent); }
@@ -218,17 +220,48 @@ footer { text-align: center; font-size: .8rem; color: var(--muted); padding: 18p
 
 /* ---------- mobil ---------- */
 @media (max-width: 860px) {
+  /* mobil: a feladat a gombokkal együtt egy képernyőn férjen el */
+  main { padding: 10px 12px 20px; }
+  .top { padding: 8px 12px; gap: 8px; }
+  .brand { gap: 8px; }
+  .tabs { padding: 3px; }
+  .tab { padding: 4px 12px; font-size: .85rem; }
+  .ai-status { padding: 5px 10px; }
+  .content { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; }
+  .content > * { flex: 1 1 100%; min-width: 0; }
+  .content > .mobile-topic { flex: 1 1 0; margin: 0 0 8px; }
+  .content > .topic-head { flex: 0 0 auto; margin: 0 0 8px; }
+  .mobile-topic span, .topic-head > div:first-child, .levels .muted { display: none; }
+  .mobile-topic select { padding: 9px 10px; }
+  .levels { gap: 4px; }
+  .levels button { width: 38px; height: 40px; }
+  .theory { margin-bottom: 8px; }
+  .theory > summary { padding: 8px 14px; font-size: .92rem; }
+  .card.problem { padding: 12px 14px 14px; margin-bottom: 10px; }
+  .prompt { font-size: 1.12rem; margin: 4px 0 2px; }
+  .expr { font-size: 1.6rem; padding: 8px 4px 10px; margin-bottom: 8px; }
+  .field-label { margin: 4px 0 4px; }
+  .answer { font-size: 1.6rem; padding: 8px 12px; min-height: 54px; }
+  .keys { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; margin-top: 6px; }
+  .keys button { min-width: 0; height: 36px; padding: 0; }
+  .preview { min-height: 0; margin-top: 4px; font-size: 1rem; }
+  .preview:empty { display: none; }
+  .problem .field-label { display: none; }
+  .work { margin-top: 4px; }
+  .work > summary { padding: 7px 12px; font-size: .85rem; }
+  .work > summary .muted { display: none; }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+  .actions .btn { justify-content: center; padding: 9px 8px; }
+  .feedback { margin-top: 10px; }
   .practice { grid-template-columns: 1fr; }
   .sidebar { display: none; }
   .mobile-topic { display: block; margin-bottom: 14px; }
-  .mobile-topic span { display: block; font-size: .78rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
   .top { position: static; }
   .brand p { display: none; }
   .brand h1 { font-size: 1rem; }
   .logo { width: 38px; height: 38px; font-size: 20px; }
   .ai-status .long { display: none; }
   .tabs { order: 3; width: 100%; justify-content: center; }
-  .actions .btn { flex: 1 1 auto; justify-content: center; }
 }
 
 .steps { margin: 8px 0 4px; padding-left: 1.3em; line-height: 1.7; font-size: .92rem; }
